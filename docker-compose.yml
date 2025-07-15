@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  transcriber:
+    container_name: video-transcriber
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: transcriber.prod.env
+    volumes:
+      - ${MODEL_PATH}:/app/models
+      - ${AUDIO_MOUNT}:/app/audios
+      - ${VIDEO_MOUNT}:/app/videos
+      - ${TRANSCRIPT_MOUNT}:/app/text_transcripts
+    restart: unless-stopped

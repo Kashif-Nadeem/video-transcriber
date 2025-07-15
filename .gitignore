@@ -1,0 +1,5 @@
+# Environment configuration files
+.env
+transcriber.dev.env
+transcriber.prod.env
+
