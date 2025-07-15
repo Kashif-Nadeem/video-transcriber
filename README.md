@@ -1,6 +1,20 @@
 # video-transcriber
 
-Dockerized media transcription pipeline for converting `.mp4` videos to `.mp3` and generating text transcripts using [Whisper](https://github.com/openai/whisper). Supports remote folders via SSHFS, automatic folder organization by month/year, and customizable transcription options.
+Dockerized media transcription pipeline with full support for video-to-audio conversion and AI-based multilingual transcription.
+
+### 🔧 Key Capabilities:
+- 🎞️ Convert `.mp4` videos to `.mp3` using `ffmpeg`
+- 🎙️ Transcribe `.mp3` audio files using OpenAI Whisper (`faster-whisper`)
+- 🧠 Auto-detect spoken language from media files
+- 🌍 Translate transcripts into a target language (if configured)
+- 🗂️ Automatically organize output into Year → Month folder structure
+- 🌐 Works with both **local and remote media folders** (via SSHFS)
+- ⚙️ Fully customizable via a `.env` configuration file
+- 🚀 Supports parallel processing of conversion and transcription tasks
+- 🌍 Whisper supports transcription/translation of over **90 languages**, including English, Urdu, Hindi, Arabic, Spanish, Chinese, and many more. You can choose whether to:
+  - Transcribe to the **same spoken language** (e.g., English → English)
+  - Automatically **translate** the audio into a **different target language** (e.g., Urdu → English)
+  - Use the `WHISPER_TASK` config option to control this behavior
 
 ---
 
@@ -30,54 +44,37 @@ transcripts/
 - Organizes files into Year → Month folders
 - Works with **local or remote media folders** via SSHFS
 - Parallel processing of video conversion and transcription
-- Fully configurable using `.env` file
+- Fully configurable using `.env` file (see `transcriber.env` for reference)
+- Language detection and optional translation using Whisper
 
 ---
 
-## ⚙️ Configuration (`transcriber.env`)
-Example:
-```ini
-# --- Paths ---
-USE_REMOTE_MEDIA=true
-REMOTE_HOST=10.0.0.10
-REMOTE_SSH_USER=jitsiadmin
-SSH_PRIVATE_KEY_PATH=/root/.ssh/id_rsa
-
-REMOTE_AUDIO_DIRS=/var/www/.../audios/2025_Audios/07_2025_Audios
-REMOTE_VIDEO_DIRS=/var/www/.../videos/2025_Videos/07_2025_Videos
-REMOTE_TRANSCRIPT_DIR=/var/www/.../text_transcripts/2025_Text_Transcripts
-
-AUDIO_DIRS=/mnt/audios_0
-VIDEO_DIRS=/mnt/videos_0
-TRANSCRIPT_DIR=/mnt/text_transcripts
-
-AUDIO_FOLDER_FORMAT=%m_%Y_Audios
-TRANSCRIPT_FOLDER_FORMAT=%m_%Y_Text_Transcripts
-
-# --- Whisper Settings ---
-WHISPER_TASK=transcribe
-WHISPER_OUTPUT_LANGUAGE=
-MODEL_PATH=/models/ggml-model.q4_0.gguf
-TRANSCRIPT_SUFFIX=_transcript.txt
-
-# --- Performance Tuning ---
-SCAN_INTERVAL=30
-AUDIO_BITRATE=128k
-MAX_CONVERT_WORKERS=2
-MAX_TRANSCRIBE_WORKERS=2
-```
+## ⚙️ Configuration
+All runtime options are defined in a `.env` file. See `transcriber.env` for reference.
+It includes options such as:
+- Remote vs local folder mode
+- Audio/video/text directories
+- SSH connection config (if using remote server)
+- Folder structure logic
+- Whisper transcription behavior and output (same language or translated)
 
 ---
 
 ## 🛠️ Build & Run with Docker Compose
 
-### 1. Create your `.env` file
+### 1. Clone the repository
+```bash
+git clone https://github.com/Kashif-Nadeem/video-transcriber.git
+cd video-transcriber
+```
+
+### 2. Create your `.env` file
 ```bash
 cp transcriber.env transcriber.prod.env
 ```
 Edit `transcriber.prod.env` with your production configuration.
 
-### 2. Use `docker-compose.yml`
+### 3. Use `docker-compose.yml`
 ```yaml
 version: '3.8'
 services:
@@ -92,12 +89,12 @@ services:
     restart: unless-stopped
 ```
 
-### 3. Build & Start
+### 4. Build & Start
 ```bash
 docker-compose up --build -d
 ```
 
-> 🚨 Any changes to `Dockerfile`, `requirements.txt`, or copied source files will trigger a rebuild.
+> 🚨 Any changes to `Dockerfile`, `requirements.txt`, or source files will trigger a rebuild.
 
 ---
 
@@ -114,8 +111,9 @@ docker-compose up --build -d
 ---
 
 ## 🧠 Whisper Language Modes
-- `WHISPER_TASK=transcribe` → same language as audio (even if output language is specified)
-- `WHISPER_TASK=translate` → always outputs translated transcript in `WHISPER_OUTPUT_LANGUAGE`
+- `WHISPER_TASK=transcribe` → Detects and transcribes spoken language as-is (ignores output language setting)
+- `WHISPER_TASK=translate` → Detects language and translates to `WHISPER_OUTPUT_LANGUAGE`
+- Whisper supports transcription/translation of over **90 languages**, including support for scripts such as Latin, Arabic, Cyrillic, and Devanagari.
 
 ---
 
