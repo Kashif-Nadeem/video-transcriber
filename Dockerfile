@@ -5,6 +5,9 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     rsync \
     openssh-client \
+    git \
+    gcc \
+    libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -13,6 +16,11 @@ WORKDIR /app
 # Copy Python dependencies first
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install WhisperX and Faster-Whisper from PyPI (recommended)
+RUN pip install whisperx && pip install faster-whisper
+
+RUN pip install --upgrade pytorch-lightning
 
 # Copy project files
 COPY . .

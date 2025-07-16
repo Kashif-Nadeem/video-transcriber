@@ -1,4 +1,5 @@
 #!/bin/bash
+export PYTHONUNBUFFERED=1
 set -e
 
 source /app/.env
@@ -48,12 +49,13 @@ log "🎞️ Converting videos to MP3..."
 find "$VIDEO_DIR" -type f -iname "*.mp4" | while read -r video; do
   [ -f "$video" ] || continue
   base_name=$(basename "$video" .mp4)
-  timestamp=$(ssh "$REMOTE_SSH_ALIAS" stat -c %Y "$video")
-  subfolder=$(date -d @"$timestamp" +"$VIDEO_FOLDER_FORMAT")
-  audio_target_dir="$AUDIO_DIR/$subfolder"
+  timestamp=$(stat -c %Y "$video")
+  audio_subfolder=$(date -d @"$timestamp" +"$AUDIO_FOLDER_FORMAT")
+  audio_target_dir="$AUDIO_DIR/$audio_subfolder"
   output="$audio_target_dir/$base_name.mp3"
 
   mkdir -p "$audio_target_dir"
+
 
   if [[ ! -f "$output" ]]; then
     log "🎧 Converting $video → $output"
@@ -63,9 +65,8 @@ find "$VIDEO_DIR" -type f -iname "*.mp4" | while read -r video; do
 
     if [[ "$USE_REMOTE_MEDIA" == "true" ]]; then
       log "🚀 Pushing $output to remote..."
-      ssh "$REMOTE_SSH_ALIAS"  "mkdir -p $REMOTE_AUDIO_DIRS/$subfolder"
-      rsync -az -e "$output" "$REMOTE_SSH_ALIAS:$REMOTE_AUDIO_DIRS/$subfolder/"
-
+      ssh "$REMOTE_SSH_ALIAS"  "mkdir -p $REMOTE_AUDIO_DIRS/$audio_subfolder"
+      rsync -az "$output" "$REMOTE_SSH_ALIAS:$REMOTE_AUDIO_DIRS/$audio_subfolder/"
     fi
   fi
 done
@@ -92,7 +93,7 @@ if [[ "$USE_REMOTE_MEDIA" == "true" ]]; then
 fi
 
 ##################################
-# Step 4: Transcribe MP3
+# Step 4: Transcribe MP3 using WhisperX
 ##################################
 
 log "📝 Transcribing audio to text..."
@@ -108,13 +109,8 @@ find "$AUDIO_DIR" -type f -iname "*.mp3" | while read -r audio; do
 
   if [[ ! -f "$transcript_target" ]]; then
     log "✍️ Transcribing $audio → $transcript_target"
-    python3 /app/transcriber.py "$audio" \
-      --output_dir "$TRANSCRIPT_DIR/$subfolder" \
-      --output_format txt \
-      --model "$MODEL_PATH" \
-      --task "$WHISPER_TASK"
+    python3 -u /app/transcriber_whisperx.py "$audio" "$transcript_target"
 
-    rm -f "$audio"
 
     if [[ "$USE_REMOTE_MEDIA" == "true" ]]; then
       log "🚀 Pushing transcript to remote..."
@@ -123,5 +119,38 @@ find "$AUDIO_DIR" -type f -iname "*.mp3" | while read -r audio; do
     fi
   fi
 done
+
+##################################
+# Step 5: Ensure .mp3 is pushed and cleanup after transcript
+##################################
+
+if [[ "$USE_REMOTE_MEDIA" == "true" ]]; then
+  log "🧹 Ensuring remote has all .mp3 files and cleaning up local copies if transcript exists..."
+
+  find "$AUDIO_DIR" -type f -iname "*.mp3" | while read -r mp3_file; do
+    [ -f "$mp3_file" ] || continue
+    base_name=$(basename "$mp3_file" .mp3)
+    timestamp=$(stat -c %Y "$mp3_file")
+    audio_subfolder=$(date -d @"$timestamp" +"$AUDIO_FOLDER_FORMAT")
+    transcript_subfolder=$(date -d @"$timestamp" +"$TRANSCRIPT_FOLDER_FORMAT")
+    transcript_path="$TRANSCRIPT_DIR/$transcript_subfolder/${base_name}${TRANSCRIPT_SUFFIX}"
+    remote_mp3_path="$REMOTE_AUDIO_DIRS/$audio_subfolder/$base_name.mp3"
+
+    # Check and push if not on remote
+    if ! ssh "$REMOTE_SSH_ALIAS" "[ -f \"$remote_mp3_path\" ]"; then
+      log "🔁 Re-pushing missing $mp3_file to remote..."
+      ssh "$REMOTE_SSH_ALIAS" "mkdir -p $REMOTE_AUDIO_DIRS/$audio_subfolder"
+      rsync -az "$mp3_file" "$REMOTE_SSH_ALIAS:$REMOTE_AUDIO_DIRS/$audio_subfolder/"
+    fi
+
+    # Cleanup local .mp3 if transcript exists
+    if [[ -f "$transcript_path" ]]; then
+      log "🧹 Cleaning up local $mp3_file (transcript confirmed)"
+      rm -f "$mp3_file"
+    fi
+  done
+fi
+
+
 
 log "✅ Processing completed."

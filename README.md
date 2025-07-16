@@ -4,17 +4,15 @@ Dockerized media transcription pipeline with full support for video-to-audio con
 
 ### 🔧 Key Capabilities:
 - 🎞️ Convert `.mp4` videos to `.mp3` using `ffmpeg`
-- 🎙️ Transcribe `.mp3` audio files using OpenAI Whisper (`faster-whisper`)
+- 🎧 Transcribe `.mp3` audio files using [WhisperX](https://github.com/m-bain/whisperx)
 - 🧠 Auto-detect spoken language from media files
-- 🌍 Translate transcripts into a target language (if configured)
+- 👥 Speaker diarization support (optional, enabled via `ENABLE_DIARIZATION=true`)
+- 📌 Accurate word-level alignment using WhisperX
 - 🗂️ Automatically organize output into Year → Month folder structure
-- 🌐 Works with both **local and remote media folders** (via SSHFS)
+- 🌐 Works with both **local and remote media folders** (via SSH, no SSHFS required)
 - ⚙️ Fully customizable via a `.env` configuration file
 - 🚀 Supports parallel processing of conversion and transcription tasks
-- 🌍 Whisper supports transcription/translation of over **90 languages**, including English, Urdu, Hindi, Arabic, Spanish, Chinese, and many more. You can choose whether to:
-  - Transcribe to the **same spoken language** (e.g., English → English)
-  - Automatically **translate** the audio into a **different target language** (e.g., Urdu → English)
-  - Use the `WHISPER_TASK` config option to control this behavior
+- 🌍 WhisperX supports transcription of over **90 languages**, including English, Urdu, Hindi, Arabic, Spanish, Chinese, and more
 
 ---
 
@@ -28,35 +26,34 @@ transcripts/
 │   └── videos/
 │       └── 2025_Videos/
 │           └── 07_2025_Videos/
-├── text_transcripts/
-│   └── 2025_Text_Transcripts/
-│       └── 07_2025_Text_Transcripts/
-└── summaries/
-    └── 2025_Summaries/
-        └── 07_2025_Summaries/
+└── text_transcripts/
+    └── 2025_Text_Transcripts/
+        └── 07_2025_Text_Transcripts/
 ```
 
 ---
 
 ## 🚀 Features
 - Automatically converts `.mp4` files to `.mp3` using `ffmpeg`
-- Transcribes `.mp3` files using `faster-whisper`
+- Transcribes `.mp3` files using WhisperX with alignment
+- Optional speaker diarization with HuggingFace token
 - Organizes files into Year → Month folders
-- Works with **local or remote media folders** via SSHFS
-- Parallel processing of video conversion and transcription
+- Works with **local or remote media folders** using SSH + `rsync`
+- Automatically deletes processed `.mp4` and `.mp3` files to save disk space
 - Fully configurable using `.env` file (see `transcriber.env` for reference)
-- Language detection and optional translation using Whisper
 
 ---
 
 ## ⚙️ Configuration
 All runtime options are defined in a `.env` file. See `transcriber.env` for reference.
-It includes options such as:
+
+Includes options for:
 - Remote vs local folder mode
-- Audio/video/text directories
-- SSH connection config (if using remote server)
-- Folder structure logic
-- Whisper transcription behavior and output (same language or translated)
+- Media directory paths (local and remote)
+- SSH credentials and key path
+- Folder naming logic using date format
+- Whisper model configuration
+- Diarization toggle and HuggingFace token
 
 ---
 
@@ -99,25 +96,24 @@ docker-compose up --build -d
 ---
 
 ## 📌 Notes
-- Audio transcripts will be saved with `_transcript.txt` suffix.
+- Audio transcripts will be saved with `_transcript.txt` suffix
 - Example:
   - Input video: `hello_world.mp4`
   - MP3 output: `hello_world.mp3`
   - Transcript: `hello_world_transcript.txt`
-- Transcripts are grouped by audio file's last modified time (Month-Year).
-- When `WHISPER_TASK=transcribe`, output language is the same as spoken language.
-- When `WHISPER_TASK=translate`, transcript will be in the language defined by `WHISPER_OUTPUT_LANGUAGE`.
+- Files are grouped by audio last modified time into Month-Year folders
+- `.mp4` is deleted after MP3 conversion, `.mp3` is deleted after transcript is generated and pushed to remote
 
 ---
 
-## 🧠 Whisper Language Modes
-- `WHISPER_TASK=transcribe` → Detects and transcribes spoken language as-is (ignores output language setting)
-- `WHISPER_TASK=translate` → Detects language and translates to `WHISPER_OUTPUT_LANGUAGE`
-- Whisper supports transcription/translation of over **90 languages**, including support for scripts such as Latin, Arabic, Cyrillic, and Devanagari.
+## 🧠 WhisperX Modes
+- `WHISPER_TASK=transcribe` → Transcribe audio in its original language
+- `WHISPER_TASK=translate` → Translate spoken audio into `WHISPER_OUTPUT_LANGUAGE` (currently not used with WhisperX)
+- `ENABLE_DIARIZATION=true` → Labels segments with speaker tags like Speaker 1, Speaker 2 (requires HF_TOKEN)
 
 ---
 
-## 🔒 .gitignore Recommendation
+## 🔐 .gitignore Recommendation
 Ensure the following are not committed to Git:
 ```
 .env
@@ -129,7 +125,7 @@ __pycache__/
 
 ---
 
-## 👨‍💻 Author
+## 👨‍💼 Author
 **Kashif Nadeem** — [github.com/Kashif-Nadeem](https://github.com/Kashif-Nadeem)
 
 > Built with ❤️ to simplify transcription workflows across local and remote media sources.
