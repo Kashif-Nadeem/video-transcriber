@@ -1,2 +1,2 @@
-faster-whisper
+faster-whisper>=0.10.0
 python-dotenv
