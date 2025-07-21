@@ -10,9 +10,8 @@ services:
     volumes:
       - ${SSH_PRIVATE_KEY_PATH}:${PRIVATE_KEY_PATH}:ro
       - ${MODEL_HOST_PATH}:${MODEL_PATH}
-      - ${TORCH_CACHE_DIR_HOST}:${TORCH_CACHE_DIR}
+#      - ${TORCH_CACHE_DIR_HOST}:${TORCH_CACHE_DIR}
       - ${REMOTE_AUDIO_DIRS}:/app/audios
       - ${REMOTE_VIDEO_DIRS}:/app/videos
       - ${REMOTE_TRANSCRIPT_DIR}:/app/text_transcripts
-    restart: no
-#unless-stopped
+    restart: unless-stopped

@@ -5,8 +5,14 @@ import torch
 import whisperx
 from datetime import timedelta
 
-# Torch cache dir
-os.environ["TORCH_HOME"] = os.getenv("TORCH_CACHE_DIR", "/app/torch-cache")
+
+# Set Hugging Face cache to TORCH_CACHE_DIR
+#torch_cache_dir = os.getenv("TORCH_CACHE_DIR", "/app/torch-cache")
+#os.environ["TORCH_HOME"] = torch_cache_dir
+#os.environ["HF_HOME"] = torch_cache_dir
+#os.environ["TRANSFORMERS_CACHE"] = torch_cache_dir
+#os.environ["HF_DATASETS_CACHE"] = torch_cache_dir
+#os.environ["HF_METRICS_CACHE"] = torch_cache_dir
 
 # Args
 audio_path = Path(sys.argv[1])
@@ -28,8 +34,9 @@ model = whisperx.load_model(model_name, device, compute_type=compute_type)
 print("✅ Model loaded. Starting transcription...", flush=True)
 
 # Transcribe
-result = model.transcribe(str(audio_path))
-print("📄 Transcription complete.", flush=True)
+#result = model.transcribe(str(audio_path))
+task = os.getenv("WHISPER_TASK", "transcribe")
+result = model.transcribe(str(audio_path), task=task)
 
 print("🧠 Aligning...", flush=True)
 align_model, metadata = whisperx.load_align_model(language_code=result["language"], device=device)
@@ -37,7 +44,7 @@ aligned = whisperx.align(result["segments"], align_model, metadata, str(audio_pa
 print("📌 Alignment done.", flush=True)
 
 segments = aligned["segments"]
-print(f"🛠 Segments content: {segments}", flush=True)
+#print(f"🛠 Segments content: {segments}", flush=True)
 
 
 # Conditional diarization
@@ -45,7 +52,10 @@ if enable_diarization:
     if hf_token:
         try:
             print("🧑‍🤝‍🧑 Performing speaker diarization...", flush=True)
-            diarize_model = whisperx.DiarizationPipeline(use_auth_token=hf_token, device=device)
+            diarize_model = whisperx.DiarizationPipeline(
+                use_auth_token=hf_token,
+                device=device
+            )
             diarize_segments = diarize_model(str(audio_path))
             segments = whisperx.assign_speakers(aligned["segments"], diarize_segments, strategy="max")
             print("✅ Diarization complete.", flush=True)
@@ -76,7 +86,7 @@ print(f"📝 Writing transcript to {output_file}", flush=True)
 
 with open(output_file, "w", encoding="utf-8") as f:
     for segment in segments:
-        print(f"🔎 Raw segment: {segment}", flush=True)  # Debug print
+#        print(f"🔎 Raw segment: {segment}", flush=True)  # Debug print
         start = segment["start"]
         end = segment["end"]
         text = segment["text"].strip()

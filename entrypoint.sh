@@ -1,4 +1,5 @@
 #!/bin/bash
+#sleep 3600
 set -e
 
 # Ensure .ssh folder and permissions
@@ -32,3 +33,4 @@ mkdir -p /app/audios /app/videos /app/transcripts /app/logs
 
 # Delegate all media processing logic to process.sh
 exec /app/process.sh
+
